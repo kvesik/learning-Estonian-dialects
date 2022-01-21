@@ -6,9 +6,8 @@ import numpy as np
 from datetime import datetime
 
 
-# full path to input file (formatted as for OTSoft GLA)
-FILE = ""
-FILE = "C:\Program Files\OTSoft2.6old\OT_Soft_SE_iFBfb_forGLA_cat_starBQP2cons_no2xcounts.txt"
+# path to input file (.txt formatted as for OTSoft GLA)
+FILE = "./SE_input_GLA.txt"
 
 # customize settings as appropriate #########
 INIT_WEIGHTS = {}  # dictionary of constraint-value pairs, if necessary
@@ -17,13 +16,14 @@ INIT_M = 100
 MAGRI = True
 SPECGENBIAS = 20
 LEARNING_TRIALS = [50000, 50000, 50000, 50000]
-EXPERIMENTNUM = "S419p"
+EXPERIMENTNUM = "exp01"
 LEARNING_R_F = [2, 0.2, 0.02, 0.002]
 LEARNING_R_M = [2, 0.2, 0.02, 0.002]
 LEARNING_NOISE_F = [2, 2, 2, 2]
 LEARNING_NOISE_M = [2, 2, 2, 2]
 # end user-customized settings ##############
 
+# constraints
 star_F = "*F"
 star_O = "*õ"
 IdBkSyl1 = "Id(Bk)Syl1"
@@ -34,6 +34,7 @@ star_e = "*e"
 GMH_e = "GMHe"
 GMH_O = "GMHõ"
 
+# other constants
 m = "markedness"
 f = "faithfulness"
 ctype = "constraint type"
@@ -41,6 +42,10 @@ g1 = "group 1 strings"
 g2 = "group 2 strings"
 
 
+# this class represents a GLA learner with a particular set of attributes:
+# - whether or not to use the Magri update rule
+# - how big to make the a priori difference between specific and general faithfulness constraint values
+# - experiment number, initial weights, noise, learning rates, and constraints as constants defined above
 class Learner:
 
     def __init__(self, infile, magri=True, specgenbias=0):
@@ -63,6 +68,7 @@ class Learner:
         # only try and learn from the tableaux that have input frequency information
         self.training_tableaux_list = [t for t in tableaux_list if sum(t["frequency"].values) > 0]
 
+    # read input from a file formatted as for OTSoft GLA learner
     def read_input(self):
         with io.open(self.file, "r") as infile:
             df = pd.read_csv(infile, sep="\t", header=1, keep_default_na=False)
@@ -145,6 +151,7 @@ class Learner:
 
         return tableaux
 
+    # actually run the learning simulation
     def train(self):
         # put headers into history file
         headertowrite = "trial num" + "\t" + "generated" + "\t" + "heard"
@@ -213,6 +220,7 @@ class Learner:
             summarytowrite = "TOTAL\t" + "\t" + "".join(["\t\t" + str(self.weights[c]) for c in self.constraints]) + "\n"
             history.write(summarytowrite)
 
+    # apply noise to current constraint values, for evaluation purposes
     def getevalweights(self, noise_f, noise_m):
         evalweights = {}
         for con in self.constraints:
@@ -222,6 +230,7 @@ class Learner:
             evalweights[con] = np.random.normal(loc=self.weights[con], scale=noise)
         return evalweights
 
+    # update constraint values given optimal candidate, intended winner, and current plasticities / biases
     def updateweights(self, tableau_df, intendedwinner, generatedoutput, cur_R_F, cur_R_M, lap_count, historystream):
         winner_df = tableau_df[tableau_df[tableau_df.columns[0]] == intendedwinner]
         optimal_df = tableau_df[tableau_df[tableau_df.columns[0]] == generatedoutput]
@@ -281,6 +290,7 @@ class Learner:
             linetowrite += "\n"
             historystream.write(linetowrite)
 
+    # learn from one datum in the input file / update constraint values if an error is generated
     def learn(self, tableau_df, cur_R_F, cur_R_M, cur_noise_F, cur_noise_M, lap_count, historystream):
         # select a learning datum from distribution (which could just be all one form)
         ur = tableau_df.columns[0]
@@ -308,6 +318,8 @@ class Learner:
         if datum != optimal_cand:
             self.updateweights(tableau_df, datum, optimal_cand, cur_R_F, cur_R_M, lap_count, historystream)
 
+    # evaluate inputs numtimes times, for each form inferring a ranking from the
+    # current constraint values (along with noise)
     def testgrammar(self, numtimes):
         forms = {}  # ur --> dict of [ candidate --> frequency ]
         for t in self.tableaux_list:
@@ -344,7 +356,7 @@ class Learner:
 
 # end of class Learner #
 
-
+# determine the violation profile for a particular candidate of a particular input
 def getviolations(ur, candidate, cons, cellvalues, rules):
     violations = []
     for idx, cell in enumerate(cellvalues):
@@ -383,6 +395,8 @@ def getviolations(ur, candidate, cons, cellvalues, rules):
     return violations
 
 
+# returns a list of dataframes, where each df represents one tableau from the input file and
+# has format as below in get_tableau()
 # tableax = dictionary of inputstring --> { dictionary of candidate --> list of violations }
 def get_tableaux(tableaux, constraints):
     list_of_dfs = []
@@ -391,6 +405,8 @@ def get_tableaux(tableaux, constraints):
     return list_of_dfs
 
 
+# returns a dataframe for a particular input (ur), where each row is a candidate, its frequency, and
+# its violation profile
 # tableau = dictionary of candidate --> list of violations
 def get_tableau(ur, tableau, constraints):
     df_lists = []
@@ -400,6 +416,7 @@ def get_tableau(ur, tableau, constraints):
     return df
 
 
+# evaluate one input's tableau given the current constraint values (any relevant noise already applied)
 # evalweights is a dictionary of constraint names --> evaluation weights
 def evaluate_one(tableau_df, evalweights):
 
@@ -439,6 +456,8 @@ def evaluate_one(tableau_df, evalweights):
     return winner
 
 
+# produce console output as well as a history file & results file,
+# detailing one simulation run of one learner
 def main():
     starttime = datetime.now()
     learner = Learner(FILE, magri=MAGRI, specgenbias=SPECGENBIAS)
@@ -478,7 +497,6 @@ def main():
         rf.write("\n--------------- BEGIN TEST ---------------------\n\n")
         testresults = learner.testgrammar(100)
         for results_t in testresults:
-            # print([results_t.columns[0]]+list(results_t.columns[1:3])+list(cons))
             ordered_t = results_t.reindex([results_t.columns[0]]+list(results_t.columns[1:3])+list(cons), axis=1)
             print(ordered_t)
             rf.write(ordered_t.to_string(index=False) + "\n\n")
