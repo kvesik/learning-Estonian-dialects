@@ -11,28 +11,19 @@ FILE = "./SE_input_GLA.txt"
 
 # customize settings as appropriate #########
 INIT_WEIGHTS = {}  # dictionary of constraint-value pairs, if necessary
-INIT_F = 0
-INIT_M = 100
-MAGRI = True
-SPECGENBIAS = 20
-LEARNING_TRIALS = [50000, 50000, 50000, 50000]
+INIT_F = 0  # start faith constraints at this weight
+INIT_M = 100  # start markedness constraints at this weight
+MAGRI = True  # use Magri or don't?
+SPECGENBIAS = 20  # what should  be the specific-general difference for a priori ranking?
+SPECCON = "Id(Bk)Syl1"  # which constraint should be higher in the a priori ranking?
+GENCON = "Id(Bk)"  # which constraint should be lower in the a priori ranking?
+LEARNING_TRIALS = [50000, 50000, 50000, 50000]  # number of trials per batch
 EXPERIMENTNUM = "exp01"
-LEARNING_R_F = [2, 0.2, 0.02, 0.002]
-LEARNING_R_M = [2, 0.2, 0.02, 0.002]
-LEARNING_NOISE_F = [2, 2, 2, 2]
-LEARNING_NOISE_M = [2, 2, 2, 2]
+LEARNING_R_F = [2, 0.2, 0.02, 0.002]  # plasticity (learning rate) for faithfulness constraints, per batch
+LEARNING_R_M = [2, 0.2, 0.02, 0.002]  # plasticity (learning rate) for markedness constraints, per batch
+LEARNING_NOISE_F = [2, 2, 2, 2]  # evaluation noise for faithfulness constraints, per batch
+LEARNING_NOISE_M = [2, 2, 2, 2]  # evaluation noise for markedness constraints, per batch
 # end user-customized settings ##############
-
-# constraints
-star_F = "*F"
-star_O = "*õ"
-IdBkSyl1 = "Id(Bk)Syl1"
-IdBkRt = "Id(Bk)"
-AgrBk = "Agr(Bk)"
-GMH_F = "GMHF"
-star_e = "*e"
-GMH_e = "GMHe"
-GMH_O = "GMHõ"
 
 # other constants
 m = "markedness"
@@ -163,16 +154,16 @@ class Learner:
             history.write(startvalstowrite)
 
             # do any necessary shuffling re a priori rankings right away
-            if self.specgenbias > 0 and round(self.weights[IdBkSyl1], 10) < round(self.weights[IdBkRt] + self.specgenbias, 10):
-                apriori_adjust = self.weights[IdBkRt] + self.specgenbias - self.weights[IdBkSyl1]
-                self.weights[IdBkSyl1] = self.weights[IdBkRt] + self.specgenbias
+            if self.specgenbias > 0 and round(self.weights[SPECCON], 10) < round(self.weights[GENCON] + self.specgenbias, 10):
+                apriori_adjust = self.weights[GENCON] + self.specgenbias - self.weights[SPECCON]
+                self.weights[SPECCON] = self.weights[GENCON] + self.specgenbias
 
-                linetowrite = "" + "\t" + "a priori" + "\t" + IdBkSyl1 + ">>" + IdBkRt + "\t"
+                linetowrite = "" + "\t" + "a priori" + "\t" + SPECCON + ">>" + GENCON + "\t"
                 for con in self.constraints:
-                    if con != IdBkSyl1 or self.specgenbias == 0:
+                    if con != SPECCON or self.specgenbias == 0:
                         linetowrite += "\t\t"
                     else:  # specgenbias != 0
-                        linetowrite += str(apriori_adjust) + "\t" + str(self.weights[IdBkSyl1])
+                        linetowrite += str(apriori_adjust) + "\t" + str(self.weights[SPECCON])
                 linetowrite += "\n"
                 history.write(linetowrite)
 
@@ -277,16 +268,16 @@ class Learner:
 
         historystream.write(linetowrite)
 
-        if self.specgenbias > 0 and round(self.weights[IdBkSyl1], 10) < round(self.weights[IdBkRt] + self.specgenbias, 10):
-            apriori_adjust = self.weights[IdBkRt] + self.specgenbias - self.weights[IdBkSyl1]
-            self.weights[IdBkSyl1] = self.weights[IdBkRt] + self.specgenbias
+        if self.specgenbias > 0 and round(self.weights[SPECCON], 10) < round(self.weights[GENCON] + self.specgenbias, 10):
+            apriori_adjust = self.weights[GENCON] + self.specgenbias - self.weights[SPECCON]
+            self.weights[SPECCON] = self.weights[GENCON] + self.specgenbias
 
-            linetowrite = "" + "\t" + "a priori" + "\t" + IdBkSyl1 + ">>" + IdBkRt + "\t"
+            linetowrite = "" + "\t" + "a priori" + "\t" + SPECCON + ">>" + GENCON + "\t"
             for con in self.constraints:
-                if con != IdBkSyl1 or self.specgenbias == 0:
+                if con != SPECCON or self.specgenbias == 0:
                     linetowrite += "\t\t"
                 else:  # specgenbias != 0
-                    linetowrite += str(apriori_adjust) + "\t" + str(self.weights[IdBkSyl1])
+                    linetowrite += str(apriori_adjust) + "\t" + str(self.weights[SPECCON])
             linetowrite += "\n"
             historystream.write(linetowrite)
 
