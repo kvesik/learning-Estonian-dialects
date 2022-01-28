@@ -11,7 +11,7 @@ FILE = "./SE_input_GLA.txt"
 
 # customize settings as appropriate #########
 INIT_WEIGHTS = {}  # dictionary of constraint-value pairs, if necessary
-INIT_F = 100
+INIT_F = 0
 INIT_M = 100
 MAGRI = True
 SPECGENBIAS = 20
